@@ -3,12 +3,16 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
-const moment = require('moment'); // Utilisation de moment pour gérer les horodatages
+const moment = require('moment');
 
 const app = express();
 const port = 3100;
 let count = 0;
 let token = null;
+
+// Codes ROME et préfixes de codes postaux à filtrer
+const romeCodes = ['J1102', 'J1103', 'J1201', 'J1301', 'J1302', 'J1304', 'J1401', 'J1402', 'J1404', 'J1501', 'J1502', 'K1104', 'K1201', 'K1207', 'K1302', 'K1403', 'K1705', 'N4103'];
+const postalPrefixes = ['76', '14', '27', '50', '61'];
 
 // Connexion à la base de données SQLite
 const db = new sqlite3.Database('./offres.db', (err) => {
@@ -87,6 +91,16 @@ function createTables() {
 
 // Fonction pour insérer les données dans la base de données
 async function insertOffer(offer) {
+    // Vérification des critères ROME et code postal
+    const isValidROME = romeCodes.includes(offer.romeCode);
+    const postalCode = offer.lieuTravail?.codePostal || '';
+    const isValidPostalCode = postalPrefixes.some(prefix => postalCode.startsWith(prefix));
+
+    if (!isValidROME || !isValidPostalCode) {
+        console.log(`Offre ${offer.id} ignorée : ne correspond pas aux critères.`);
+        return;
+    }
+
     return new Promise((resolve, reject) => {
         // Insertion dans la table `offres`
         db.run(`
@@ -215,7 +229,7 @@ async function fetchOffres() {
         for (const offer of newOffers) {
             try {
                 await insertOffer(offer);
-                console.log(`Offre ${offer.id} insérée avec succès.`);
+                console.log(`Offre ${offer.id} traitée avec succès.`);
             } catch (err) {
                 console.error(`Erreur lors de l'insertion de l'offre ${offer.id} :`, err.message);
             }
@@ -227,36 +241,28 @@ async function fetchOffres() {
         return response.data;
     } catch (error) {
         if (error.response?.status === 401) {
-            console.error('Token expiré ou invalide. Renouvellement du token...');
-            token = await getToken();
+            console.error('Token expiré ou invalide. Renouvellement en cours...');
+            token = await getToken(); // Rafraîchir le token et relancer la requête
             return fetchOffres();
         }
-        console.error('Erreur lors de la récupération des offres:', error.response?.data || error.message);
-        throw error;
+        console.error('Erreur lors de la récupération des offres:', error.message);
     }
 }
 
-// Fonction principale pour démarrer le processus
-async function startFetchingOffres() {
+// Planification de la récupération des offres toutes les X minutes
+setInterval(fetchOffres, 15 * 60 * 1000); // Toutes les 15 minutes
+
+// Lancer le serveur Express
+app.use(cors());
+
+app.listen(port, async () => {
+    createTables();
+    console.log(`API running on port ${port}`);
+
     try {
         token = await getToken();
-        setInterval(async () => {
-            try {
-                await fetchOffres();
-            } catch (error) {
-                console.error('Échec de la récupération des offres:', error.message);
-            }
-        }, 3000); // Toutes les 3 secondes
-
-        await fetchOffres(); // Appel initial
-    } catch (error) {
-        console.error('Échec lors du démarrage de la récupération des offres:', error.message);
+        await fetchOffres(); // Récupérer les offres lors du démarrage
+    } catch (err) {
+        console.error('Erreur lors du démarrage :', err.message);
     }
-}
-
-// Démarrer le serveur et lancer le processus
-app.listen(port, () => {
-    console.log(`Serveur démarré sur http://localhost:${port}`);
-    createTables(); // Crée les tables à l'initialisation
-    startFetchingOffres();
 });
