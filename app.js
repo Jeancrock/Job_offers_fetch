@@ -270,7 +270,7 @@ async function fetchOffres() {
 // Fonction pour gérer la mise à jour automatique toutes les heures
 setInterval(() => {
     fetchOffres();
-}, 60 * 60 * 1000); // Mise à jour toutes les heures
+}, 3000); // Mise à jour toutes les heures
 
 // Créer les tables et démarrer le serveur
 createTables();
