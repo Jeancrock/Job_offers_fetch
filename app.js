@@ -13,9 +13,9 @@ let token = null;
 
 // Connexion à PostgreSQL
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  host: process.env.MYSQLHOST,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
   database: process.env.DB_NAME,
 });
 
