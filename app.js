@@ -4,24 +4,41 @@ const axios = require('axios');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const moment = require('moment');
+const { Pool } = require('pg');
 
 const app = express();
 const port = 3100;
 let count = 0;
 let token = null;
 
-// Codes ROME et préfixes de codes postaux à filtrer
-const romeCodes = ['J1102', 'J1103', 'J1201', 'J1301', 'J1302', 'J1304', 'J1401', 'J1402', 'J1404', 'J1501', 'J1502', 'K1104', 'K1201', 'K1207', 'K1302', 'K1403', 'K1705', 'N4103'];
-const postalPrefixes = ['76', '14', '27', '50', '61'];
+// Connexion à PostgreSQL
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
+
+pool.connect((err) => {
+  if (err) {
+    console.error('Erreur de connexion à la base de données PostgreSQL :', err);
+  } else {
+    console.log('Connecté à la base de données PostgreSQL !');
+  }
+});
 
 // Connexion à la base de données SQLite
 const db = new sqlite3.Database('./offres.db', (err) => {
     if (err) {
-        console.error('Erreur lors de la connexion à la base de données :', err.message);
+        console.error('Erreur lors de la connexion à la base de données SQLite :', err.message);
     } else {
         console.log('Connecté à la base de données SQLite.');
     }
 });
+
+// Codes ROME et préfixes de codes postaux à filtrer
+const romeCodes = ['J1102', 'J1103', 'J1201', 'J1301', 'J1302', 'J1304', 'J1401', 'J1402', 'J1404', 'J1501', 'J1502', 'K1104', 'K1201', 'K1207', 'K1302', 'K1403', 'K1705', 'N4103'];
+const postalPrefixes = ['76', '14', '27', '50', '61'];
 
 // Fonction pour créer les tables (si elles n'existent pas encore)
 function createTables() {
@@ -242,27 +259,23 @@ async function fetchOffres() {
     } catch (error) {
         if (error.response?.status === 401) {
             console.error('Token expiré ou invalide. Renouvellement en cours...');
-            token = await getToken(); // Rafraîchir le token et relancer la requête
-            return fetchOffres();
+            token = await getToken();
+            return fetchOffres(); // Recommencer après avoir récupéré un nouveau token
+        } else {
+            console.error('Erreur lors de la récupération des offres:', error.response?.data || error.message);
         }
-        console.error('Erreur lors de la récupération des offres:', error.message);
     }
 }
 
-// Planification de la récupération des offres toutes les X minutes
-setInterval(fetchOffres, 15 * 60 * 1000); // Toutes les 15 minutes
+// Fonction pour gérer la mise à jour automatique toutes les heures
+setInterval(() => {
+    fetchOffres();
+}, 60 * 60 * 1000); // Mise à jour toutes les heures
 
-// Lancer le serveur Express
-app.use(cors());
+// Créer les tables et démarrer le serveur
+createTables();
+fetchOffres(); // Première récupération au démarrage du serveur
 
-app.listen(port, async () => {
-    createTables();
-    console.log(`API running on port ${port}`);
-
-    try {
-        token = await getToken();
-        await fetchOffres(); // Récupérer les offres lors du démarrage
-    } catch (err) {
-        console.error('Erreur lors du démarrage :', err.message);
-    }
+app.listen(port, () => {
+    console.log(`Serveur en cours d'exécution sur http://localhost:${port}`);
 });
