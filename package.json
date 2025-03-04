@@ -5,7 +5,7 @@
     "main": "app.js",
     "type": "module",
     "scripts": {
-      "start": "node app.js"
+      "start": "npm install\nnode app.js"
     },
     "dependencies": {
       "@supabase/supabase-js": "^2.49.1",
