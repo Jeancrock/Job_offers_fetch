@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 let count = 0;
 let token = null;
 
