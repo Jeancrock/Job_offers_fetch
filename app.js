@@ -10,8 +10,9 @@ dotenv.config();
 const port = process.env.PORT;
 let count = 0;
 let token = null;
+let manyOffers = 150;
 
-const supabaseUrl = 'https://mwqrifduvmmpclztlxpp.supabase.co';
+const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -104,9 +105,15 @@ async function insertOffer(offer) {
 
         console.log(`Offre ${offer.id} insérée avec succès.`);
     } catch (err) {
-        console.error(`Erreur lors de l'insertion de l'offre ${offer.id} :`, err.message);
-        throw err;
+        
+        if (!err['code'] === "23505") {
+            // Si c'est une autre erreur, on log l'erreur et on la relance
+            console.error(`Erreur lors de l'insertion de l'offre ${offer.id} :`, err.message);
+            throw err;  // Relance l'erreur pour qu'elle soit gérée ailleurs si nécessaire
+        } else {
+        }
     }
+
 }
 
 // Fonction pour récupérer le token d'authentification OAuth2
@@ -159,7 +166,6 @@ async function fetchOffres() {
         }
 
         console.log('\nMise à jour N°', count);
-        console.log('Nouvelles offres récupérées :', newOffers.length);
     } catch (error) {
         if (error.response?.status === 401) {
             console.error('Token expiré ou invalide. Renouvellement en cours...');
