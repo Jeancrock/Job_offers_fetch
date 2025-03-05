@@ -10,7 +10,6 @@ dotenv.config();
 const port = process.env.PORT;
 let count = 0;
 let token = null;
-let manyOffers = 150;
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
